@@ -18,7 +18,7 @@ Following professional data engineering best practices:
 
 1. **Acquisition**: Collecting raw ECG data contaminated with noise.
 2. **Transformation**: Applying **Fast Fourier Transform ($FFT$)** to identify noise spikes.
-3. **Filtering**: Targeting the $50Hz$ frequency component for removal[cite: 86, 95].
+3. **Filtering**: Targeting the $50Hz$ frequency component for removal.
 4. **Reconstruction**: Using **Inverse FFT ($IFFT$)** to restore the cleaned time-domain signal.
 
 ## Results: Before vs. After
