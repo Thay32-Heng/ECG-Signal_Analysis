@@ -23,7 +23,7 @@ Following professional data engineering best practices:
 
 ## Results: Before vs. After
 
-The primary metric for success is the visual and mathematical clarity of the signal[cite: 109].
+The primary metric for success is the visual and mathematical clarity of the signal.
 
 | **Signal Phase** | **Visual Output**                              | **Key Characteristic**                              |
 | :--------------- | :--------------------------------------------- | :-------------------------------------------------- |
