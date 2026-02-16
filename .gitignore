@@ -1,0 +1,14 @@
+# Python environment
+venv/
+__pycache__/
+*.pyc
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Data & Documentation (Keep raw data out of version control)
+data/raw/          
+*.pdf             
+
+# Images (Optional: Ignore if you only want to keep final versions)
+# images/tmp/
