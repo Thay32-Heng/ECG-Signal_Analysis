@@ -22,10 +22,11 @@ SNR is `10·log10(var(reference) / var(reference − estimate))` against the cle
 **Heart rate:** 72.1 bpm detected from the filtered signal, against 72.4 bpm used to generate the
 record — an absolute error of **0.25 bpm**.
 
-**The honest finding.** Neither filter is enough on its own. A 40 Hz low-pass only attenuates a 50 Hz
-spike by a few dB, and a notch does nothing about baseline wander — so each buys at most ~11 dB while
-the pair buys ~25 dB. The price of that is visible in the morphology: the R peak comes out **7.6 %
-shorter** and the trace still correlates **0.996** with the ground truth. The filter is not free.
+**The honest finding.** Neither filter is enough on its own. A 40 Hz low-pass attenuates the 50 Hz
+spike by 17 dB — real, but not enough — and a notch does nothing about baseline wander. So each buys
+at most ~11 dB of SNR while the pair buys ~25 dB. The price of that is visible in the morphology: the
+R peak comes out **7.6 % shorter** and the trace still correlates **0.996** with the ground truth. The
+filter is not free.
 
 | Before | After |
 | :----: | :---: |
@@ -63,6 +64,29 @@ and both cutoffs, plus the notch quality factor. Uploads must be a CSV with `tim
 readable message, never a traceback. An uploaded file that also carries a `voltage_reference` column
 gets the same SNR scoring as the bundled record.
 
+### Overview
+
+![Overview page](images/app_overview.png)
+
+Headline SNR before/after, the heart rate recovered from the filtered trace, and what the filter cost
+in R-peak height — followed by the raw and filtered traces on a shared time axis so the 50 Hz hum and
+the recovered P-QRS-T complexes are visible side by side.
+
+### Signal viewer
+
+![Signal viewer page](images/app_signal_viewer.png)
+
+A zoomable window with the detected R peaks marked. The caption separates the beats inside the window
+from the beats in the whole record, because "5" next to "12 beats detected" otherwise looks like a bug.
+
+### Spectrum
+
+![Spectrum page](images/app_spectrum.png)
+
+The mains spike before and after. The 50 Hz component drops by **89.6 dB**, and the green band shows
+exactly what the 0.5–40 Hz pass-band lets through. This page is the reason the notch is not optional:
+a 40 Hz low-pass alone attenuates the spike by 17 dB, which is real but nowhere near enough.
+
 ## Project structure
 
 ```
@@ -95,6 +119,28 @@ images/                       # committed figures
    standard-deviation ratios that show what the filter cost.
 4. **QRS detection** — 5–15 Hz band-pass, derivative, square, 150 ms moving-window integration, adaptive
    threshold (Pan & Tompkins SPKI/NPKI), 200 ms refractory. Heart rate is `60 / median(RR)`.
+
+## What changed in this pass
+
+The original notebook produced a denoised trace and three static figures. The
+Streamlit app, the validation layer and every fix below were added afterwards.
+
+| Area | Before | After |
+|---|---|---|
+| **Generator** | `data/create_data.py` saved the `noise_50Hz` array into the `voltage` column, so the committed "raw ECG" was a pure 50 Hz sine with no heartbeat in it | Saves the assembled P-QRS-T + wander + white-noise trace, and also writes the clean reference used for scoring |
+| Notch | The 50 Hz FFT bin was zeroed outright; the abrupt edge produced Gibbs ringing across the whole trace | Raised-cosine taper over ±1 Hz — same attenuation, no ringing |
+| Band-pass | The original pipeline had no time-domain band-pass at all — it only zeroed the 50 Hz FFT bins, so baseline wander and everything above the mains frequency survived | Butterworth 0.5–40 Hz through `sosfiltfilt`; forward–backward filtering has exactly zero phase, so R peaks keep their timing (a one-way `lfilter` would shift them) |
+| Sampling rate | The filter used the sidebar value while the QRS detector used the file's inferred rate — two different clocks | Both read `settings.fs`; the sidebar value is clamped to the widget range instead of raising |
+| Attenuation card | Showed **−89.6 dB** for an 89.6 dB drop (sign flipped at the display layer) | Shows `89.6 dB` |
+| Short uploads | A 1.2 s CSV crashed the viewer: `floor(1.2 − 0.5)` made both slider bounds `0.0`, and Streamlit refuses equal `min_value`/`max_value` | The zoom controls are skipped for records under 1.5 s |
+| Millisecond time column | A CSV whose `time` was in ms inferred 1 Hz and crashed the sampling-rate widget | Rate is clamped to 50–5000 Hz and the detected value is stated |
+| "Back to bundled record" | Cleared the cached bytes but not the uploader's own session key, so the file came straight back | Clears the uploader key too |
+| Plot legend | Legend overlapped the "Raw" subplot title and clipped "Filtered" | Panel labels moved to the y-axes; legend sits on top |
+
+The generator bug is the one worth reading twice: the repository's committed raw
+signal had no heartbeat in it, and every downstream number was therefore
+measuring how well a filter removes 50 Hz from a 50 Hz sine. Re-filtering the
+old CSV was what exposed it.
 
 ## Limitations
 

@@ -94,12 +94,27 @@ the filtered trace rejoins the raw one immediately.
 """
     )
 with right:
+    # Every claim here has to survive the whole configuration space, not just
+    # the default one. The band-pass can only attenuate the mains spike; the
+    # notch is what removes it. Saying "still there, just smaller" while the
+    # notch is already zeroing that bin contradicts the card 40 lines above.
+    if not settings.use_bandpass:
+        shading = "The band-pass is switched off, so nothing is shaded and the cutoffs do not apply."
+        spike_clause = "Only the notch is acting on the signal."
+    else:
+        shading = f"The green shading is the {settings.low:g}–{settings.high:g} Hz pass-band."
+        spike_clause = (
+            "With the notch off, the mains spike survives: the low-pass can only "
+            "attenuate it, never remove it."
+            if settings.notch_hz is None
+            else "The notch is what removes the mains spike; the band-pass only "
+            "attenuates what falls outside this band."
+        )
     st.markdown(
         f"""
-**The band-pass.** The green shading is the {settings.low:g}–{settings.high:g} Hz pass-band. Below
-{settings.low:g} Hz sits the baseline wander (0.3 Hz in the bundled record); above {settings.high:g} Hz
-sits muscle noise and the rest of the mains harmonics. Note that a {settings.high:g} Hz low-pass only
-attenuates 50 Hz by a few dB — that is why the notch is still needed.
+**The band-pass.** {shading} Below {settings.low:g} Hz sits the baseline wander (0.3 Hz in the
+bundled record); above {settings.high:g} Hz sits muscle noise and the rest of the mains harmonics.
+{spike_clause}
 """
     )
 
