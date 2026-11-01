@@ -6,9 +6,11 @@ __pycache__/
 # Jupyter Notebook
 .ipynb_checkpoints/
 
-# Data & Documentation (Keep raw data out of version control)
-data/raw/          
-*.pdf             
+# Data: the synthetic record is small and required by the app, so it is tracked.
+# Anything else dropped into data/raw/ stays out of version control.
+data/raw/*
+!data/raw/ecg_noisy_raw.csv
+*.pdf
 
 # Images (Optional: Ignore if you only want to keep final versions)
 # images/tmp/

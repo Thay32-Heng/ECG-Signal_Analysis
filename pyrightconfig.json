@@ -1,0 +1,7 @@
+{
+  "include": ["app", "src", "data"],
+  "exclude": ["**/__pycache__", ".venv", "notebooks"],
+  "extraPaths": [".", "app", ".venv/lib/python3.14/site-packages"],
+  "typeCheckingMode": "basic",
+  "reportMissingTypeStubs": false
+}

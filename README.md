@@ -1,41 +1,106 @@
-# ECG Signal Denoising Using Fast Fourier Transform (FFT)
+# ECG Signal Denoising
 
-## Project Overview
+A single-lead ECG is cleaned with a **50 Hz notch filter** and a **zero-phase Butterworth band-pass**,
+then scored against the known clean reference. A **Pan-Tompkins-lite QRS detector** recovers the heart
+rate from the result. A Streamlit app shows all of it live.
 
-This project focuses on the digital processing of Electrocardiogram (ECG) signals to remove environmental noise, specifically 50Hz power-line interference.By converting signals from the **Time Domain** to the **Frequency Domain** , we can accurately filter out artifacts while preserving vital cardiac waves (P, QRS, and T).
+> **This is not machine learning and not a medical device.** The "model" is a deterministic DSP chain.
+> The bundled ECG is **synthetic** — generated from a P-QRS-T model, no patient data — and nothing here
+> is a diagnosis or clinical advice.
 
-## Project Structure
+## Results on the bundled record
 
-Following professional data engineering best practices:
+| Filter chain | SNR in (dB) | SNR out (dB) | Gain (dB) | BPM after |
+| :----------- | ----------: | -----------: | --------: | --------: |
+| raw (no filter) | −4.50 | −4.50 | 0.00 | 72.1 |
+| notch 50 Hz only | −4.50 | +3.31 | +7.81 | 72.1 |
+| band-pass 0.5–40 Hz only | −4.50 | +6.38 | +10.88 | 72.1 |
+| **notch + band-pass** | −4.50 | **+20.68** | **+25.18** | **72.1** |
 
-- `data/raw/`: Original ECG datasets containing noise.
-- `data/processed/`: Cleaned ECG signals after FFT filtering.
-- `docs/`: Presentation slides and technical documentation.
-- `src/validation/`: Modules to verify signal improvement.
-- `notebooks/`: Interactive analysis of FFT and IFFT stages.
+SNR is `10·log10(var(reference) / var(reference − estimate))` against the clean reference.
 
-## Methodology
+**Heart rate:** 72.1 bpm detected from the filtered signal, against 72.4 bpm used to generate the
+record — an absolute error of **0.25 bpm**.
 
-1. **Acquisition**: Collecting raw ECG data contaminated with noise.
-2. **Transformation**: Applying **Fast Fourier Transform ($FFT$)** to identify noise spikes.
-3. **Filtering**: Targeting the $50Hz$ frequency component for removal.
-4. **Reconstruction**: Using **Inverse FFT ($IFFT$)** to restore the cleaned time-domain signal.
+**The honest finding.** Neither filter is enough on its own. A 40 Hz low-pass only attenuates a 50 Hz
+spike by a few dB, and a notch does nothing about baseline wander — so each buys at most ~11 dB while
+the pair buys ~25 dB. The price of that is visible in the morphology: the R peak comes out **7.6 %
+shorter** and the trace still correlates **0.996** with the ground truth. The filter is not free.
 
-## Results: Before vs. After
+| Before | After |
+| :----: | :---: |
+| ![Raw ECG](images/graph_raw_data.png) | ![Filtered ECG](images/graph_clean_signal.png) |
+| 50 Hz hum, baseline wander, white noise | Filtered (green) against the truth (dotted) |
 
-The primary metric for success is the visual and mathematical clarity of the signal.
+![Spectrum](images/graph_spectrum.png)
 
-| **Signal Phase** | **Visual Output**                              | **Key Characteristic**                              |
-| :--------------- | :--------------------------------------------- | :-------------------------------------------------- |
-| **Raw ECG**      | ![Noisy Signal](images/graph_raw_data.png)     | High-frequency $50Hz$ noise distortion.             |
-| **Filtered ECG** | ![Clean Signal](images/graph_clean_signal.png) | Preserved cardiac morphology for medical diagnosis. |
+## Quick start
 
-## Impact & Applications
+```bash
+python -m venv .venv
+.venv/bin/pip install -r requirements.txt
 
-- **Clinical Diagnostics**: Assisting doctors in detecting arrhythmias with higher accuracy.
-- **Wearable Tech**: Filtering motion artifacts in smartwatches.
-- **AI Cardiology**: Providing clean data for machine learning heart attack predictions.
+.venv/bin/python data/create_data.py     # regenerate the synthetic record
+.venv/bin/python src/fft_denoising.py    # score every chain -> data/process/metrics.csv
+.venv/bin/python -m streamlit run app/Home.py
+```
 
----
+On this machine Streamlit lives in the user site-packages, so `.venv/bin/streamlit` does not exist —
+use `.venv/bin/python -m streamlit run app/Home.py`.
 
-**Developed DSE Year 2 (RUPP)**.
+## The app
+
+Four pages, built with `st.navigation` / `st.Page` (Streamlit 1.66):
+
+- **Overview** — headline SNR/BPM numbers, the four-chain comparison table, limitations.
+- **Signal viewer** — raw vs filtered in the time domain, detected R peaks, zoom window.
+- **Spectrum** — amplitude spectrum before/after, live notch and band-pass controls.
+- **Metrics** — SNR per chain, heart-rate accuracy, and what the filter costs in morphology.
+
+Sidebar controls re-filter the selected record live: sampling rate, 50/60 Hz notch, band-pass on/off
+and both cutoffs, plus the notch quality factor. Uploads must be a CSV with `time` and `voltage`
+(`voltage_cleaned` is accepted as a fallback); the schema is validated and failures are shown as a
+readable message, never a traceback. An uploaded file that also carries a `voltage_reference` column
+gets the same SNR scoring as the bundled record.
+
+## Project structure
+
+```
+data/
+  create_data.py              # synthetic P-QRS-T generator (deterministic, seed 20240501)
+  raw/ecg_noisy_raw.csv       # contaminated record            (time, voltage)
+  process/ecg_reference_clean.csv  # ground truth              (time, voltage)
+  process/clean_ecg_noisy.csv # filtered output, backwards compatible (time, voltage_cleaned)
+  process/metrics.csv         # the table above, regenerated by src/fft_denoising.py
+  process/ecg_metadata.json   # sampling rate, heart rate, noise parameters
+src/
+  fft_denoising.py            # spectrum, notch, bandpass, denoise, snr, qrs_indices, estimate_bpm
+app/
+  Home.py                     # entrypoint + overview page
+  lib/                        # io (loading/validation), dsp (cached wrappers), charts, ui
+  pages/                      # 1_Signal_Viewer, 2_Spectrum, 3_Metrics
+notebooks/
+  ecg_exploration.ipynb       # generates the figures in images/
+images/                       # committed figures
+```
+
+## Method
+
+1. **FFT notch** — bins within ±1 Hz of 50 Hz are attenuated with a raised-cosine taper. The original
+   version of this project zeroed the bin outright, and the abrupt edge produced Gibbs ringing across
+   the whole trace; the taper removes that.
+2. **Band-pass** — Butterworth, order 4, 0.5–40 Hz, run through `sosfiltfilt`. Forwards-backwards
+   filtering gives exactly zero phase, so R peaks keep their timing. (A one-way `lfilter` shifts them.)
+3. **Scoring** — SNR, RMSE and Pearson correlation against the reference, plus the R-peak height and
+   standard-deviation ratios that show what the filter cost.
+4. **QRS detection** — 5–15 Hz band-pass, derivative, square, 150 ms moving-window integration, adaptive
+   threshold (Pan & Tompkins SPKI/NPKI), 200 ms refractory. Heart rate is `60 / median(RR)`.
+
+## Limitations
+
+- The bundled record is synthetic: one lead, one rate (1000 Hz), one heart rate (~72 bpm), no motion
+  artefact, no arrhythmia, no lead variability. The numbers are a sanity check, not a benchmark.
+- The SNR is only computable because the noise was added on top of a known clean trace. On a real
+  recording you would need a clean lead or expert annotations to get the same number.
+- The 0.5 Hz high-pass trims the slow T wave and the 40 Hz low-pass rounds the R peak — a real
+  diagnostic ECG would use a wider band and accept more noise.

@@ -1,0 +1,71 @@
+{
+  "source": "synthetic",
+  "generator": "data/create_data.py",
+  "seed": 20240501,
+  "fs_hz": 1000.0,
+  "duration_s": 9.999,
+  "n_samples": 10000,
+  "target_bpm": 72.0,
+  "realised_bpm": 72.3691,
+  "n_beats": 12,
+  "beat_times_s": [
+    0.4167,
+    1.2446,
+    2.0616,
+    2.9032,
+    3.7436,
+    4.5696,
+    5.4013,
+    6.2046,
+    7.0232,
+    7.8601,
+    8.7034,
+    9.5366
+  ],
+  "artefacts": {
+    "powerline": {
+      "frequency_hz": 50.0,
+      "amplitude": 0.35
+    },
+    "baseline_wander": {
+      "frequency_hz": 0.3,
+      "amplitude": 0.15
+    },
+    "white_noise": {
+      "std": 0.03
+    }
+  },
+  "morphology": [
+    {
+      "name": "P",
+      "offset_s": -0.2,
+      "amplitude": 0.15,
+      "sigma_s": 0.025
+    },
+    {
+      "name": "Q",
+      "offset_s": -0.035,
+      "amplitude": -0.1,
+      "sigma_s": 0.008
+    },
+    {
+      "name": "R",
+      "offset_s": 0.0,
+      "amplitude": 1.0,
+      "sigma_s": 0.01
+    },
+    {
+      "name": "S",
+      "offset_s": 0.035,
+      "amplitude": -0.2,
+      "sigma_s": 0.01
+    },
+    {
+      "name": "T",
+      "offset_s": 0.26,
+      "amplitude": 0.3,
+      "sigma_s": 0.045
+    }
+  ],
+  "units": "normalised voltage (R peak = 1.0), time in seconds"
+}

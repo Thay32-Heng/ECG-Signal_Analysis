@@ -1,0 +1,18 @@
+[theme]
+base = "dark"
+primaryColor = "#22C55E"
+backgroundColor = "#020617"
+secondaryBackgroundColor = "#0E1223"
+textColor = "#F8FAFC"
+font = "sans serif"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[client]
+# A portfolio demo should not advertise Streamlit's own chrome.
+toolbarMode = "minimal"
+showSidebarNavigation = true
